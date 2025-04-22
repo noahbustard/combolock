@@ -2,8 +2,8 @@
  *
  * @file rotary-encoder.c
  *
- * @author (STUDENTS -- TYPE YOUR NAME HERE)
- * @author (STUDENTS -- TYPE YOUR NAME HERE)
+ * @author Noah Bustard
+ * @author Caden France
  *
  * @brief Code to control a servomotor.
  *
