@@ -2,8 +2,8 @@
  *
  * @file rotary-encoder.c
  *
- * @author (STUDENTS -- TYPE YOUR NAME HERE)
- * @author (STUDENTS -- TYPE YOUR NAME HERE)
+ * @author Noah Bustard
+ * @author Caden France
  *
  * @brief Code to determine the direction that a rotary encoder is turning.
  *
@@ -39,8 +39,9 @@ void initialize_rotary_encoder() {
 }
 
 uint8_t get_quadrature() {
-    ;
-    return 0;
+    bool a = cowpi_read_pin(A_WIPER_PIN);
+    bool b = cowpi_read_pin(B_WIPER_PIN);
+    return ((b << 1) | a);
 }
 
 char *count_rotations(char *buffer) {
