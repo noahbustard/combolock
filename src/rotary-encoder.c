@@ -14,48 +14,88 @@
  * ComboLock solution (c) the above-named students
  */
 
-#include <CowPi.h>
-#include "interrupt_support.h"
-#include "rotary-encoder.h"
-
-#define A_WIPER_PIN         (16)
-#define B_WIPER_PIN         (A_WIPER_PIN + 1)
-
-typedef enum {
-    HIGH_HIGH, HIGH_LOW, LOW_LOW, LOW_HIGH, UNKNOWN
-} rotation_state_t;
-
-static rotation_state_t volatile state;
-static direction_t volatile direction = STATIONARY;
-static int volatile clockwise_count = 0;
-static int volatile counterclockwise_count = 0;
-
-static void handle_quadrature_interrupt();
-
-void initialize_rotary_encoder() {
-    cowpi_set_pullup_input_pins((1 << A_WIPER_PIN) | (1 << B_WIPER_PIN));
-    ;
-//    register_pin_ISR((1 << A_WIPER_PIN) | (1 << B_WIPER_PIN), handle_quadrature_interrupt);
-}
-
-uint8_t get_quadrature() {
-    bool a = cowpi_read_pin(A_WIPER_PIN);
-    bool b = cowpi_read_pin(B_WIPER_PIN);
-    return ((b << 1) | a);
-}
-
-char *count_rotations(char *buffer) {
-    ;
-    return buffer;
-}
-
-direction_t get_direction() {
-    ;
-    return STATIONARY;
-}
-
-static void handle_quadrature_interrupt() {
-    static rotation_state_t last_state = UNKNOWN;
-    uint8_t quadrature = get_quadrature();
-    ;
-}
+ #include <CowPi.h>
+ #include "interrupt_support.h"
+ #include "rotary-encoder.h"
+ 
+ #define A_WIPER_PIN         (16)
+ #define B_WIPER_PIN         (A_WIPER_PIN + 1)
+ 
+ typedef enum {
+     HIGH_HIGH, HIGH_LOW, LOW_LOW, LOW_HIGH, UNKNOWN
+ } rotation_state_t;
+ 
+ static rotation_state_t volatile state;
+ static direction_t volatile direction = STATIONARY;
+ static int volatile clockwise_count = 0;
+ static int volatile counterclockwise_count = 0;
+ 
+ static void handle_quadrature_interrupt();
+ 
+ void initialize_rotary_encoder() {
+     cowpi_set_pullup_input_pins((1 << A_WIPER_PIN) | (1 << B_WIPER_PIN));
+     register_pin_ISR((1 << A_WIPER_PIN) | (1 << B_WIPER_PIN), handle_quadrature_interrupt);
+ 
+     uint8_t quadrature = get_quadrature();
+     switch (quadrature) {
+         case 0b11: state = HIGH_HIGH; break;
+         case 0b10: state = HIGH_LOW; break;
+         case 0b00: state = LOW_LOW; break;
+         case 0b01: state = LOW_HIGH; break;
+         default:   state = UNKNOWN; break;
+     }
+     
+     register_pin_ISR((1 << A_WIPER_PIN) | (1 << B_WIPER_PIN), handle_quadrature_interrupt);
+     
+ }
+ 
+ uint8_t get_quadrature() {
+ 
+     bool a = digitalRead(A_WIPER_PIN);
+     bool b = digitalRead(B_WIPER_PIN);
+ 
+     return (b << 1) | a;
+ }
+ 
+ 
+ char *count_rotations(char *buffer) {
+     sprintf(buffer, "CW:%d CCW:%d", clockwise_count, counterclockwise_count);
+     return buffer;
+ }
+ 
+ 
+ direction_t get_direction() {
+     direction_t last_direction = direction;
+     direction = STATIONARY;        
+     return last_direction;
+ }
+ 
+ 
+ static void handle_quadrature_interrupt() {
+     static rotation_state_t last_state = UNKNOWN;
+     uint8_t quadrature = get_quadrature();
+ 
+     rotation_state_t new_state;
+     switch (quadrature) {
+         case 0b11: new_state = HIGH_HIGH; break;
+         case 0b10: new_state = HIGH_LOW; break;
+         case 0b00: new_state = LOW_LOW; break;
+         case 0b01: new_state = LOW_HIGH; break;
+         default:   new_state = UNKNOWN; break;
+     }
+ 
+ 
+     if (new_state == LOW_LOW) {
+         if (last_state == HIGH_LOW) {
+             direction = CLOCKWISE;
+             clockwise_count++;
+         } else if (last_state == LOW_HIGH) {
+             direction = COUNTERCLOCKWISE;
+             counterclockwise_count++;
+         }
+     }
+ 
+     last_state = state;
+     state = new_state;
+ }
+ 
