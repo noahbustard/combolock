@@ -18,9 +18,9 @@
 #include "servomotor.h"
 #include "interrupt_support.h"
 
-#define SERVO_PIN           (20)
-#define PULSE_INCREMENT_uS  (500000)
-#define SIGNAL_PERIOD_uS    (20000000)
+#define SERVO_PIN           (22)
+#define PULSE_INCREMENT_uS  (500)
+#define SIGNAL_PERIOD_uS    (20000)
 
 static int volatile pulse_width_us;
 static int volatile time_until_rising_edge;
@@ -88,13 +88,13 @@ char *test_servo(char *buffer) {
 
 
 void center_servo() {
-    pulse_width_us = 1500000;
+    pulse_width_us = 1500;
 }
 
 void rotate_full_clockwise() {
-    pulse_width_us = 2000000;
+    pulse_width_us = 1000;
 }
 
 void rotate_full_counterclockwise() {
-    pulse_width_us = 1000000;
+    pulse_width_us = 2000;
 }
