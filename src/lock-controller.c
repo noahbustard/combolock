@@ -104,7 +104,7 @@ void control_lock() {
             }
         }
         display_string(1, format_combination(entered_combination));
-
+        //TODO: Debouncing here is very important, button will not work without debouncing
         if (left_button_pressed) {
             if (progress == 2) {
                 if (entered_combination[0] == combination[0] &&
