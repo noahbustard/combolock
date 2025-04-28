@@ -1,5 +1,5 @@
 /**************************************************************************/ /**
-                                                                              *
+                                                                             *
                                                                               * @file rotary-encoder.c
                                                                               *
                                                                               * @author NOAH BUSTARD
@@ -42,19 +42,19 @@ char *test_servo(char *buffer)
     if (cowpi_left_button_is_pressed())
     {
         center_servo();
-        sprintf(buffer, "SERVO: center");
+        sprintf(buffer, "Center");
     }
     else
     {
         if (cowpi_left_switch_is_in_left_position())
         {
             rotate_full_clockwise();
-            sprintf(buffer, "SERVO: right");
+            sprintf(buffer, "Clockwise");
         }
         else if (cowpi_left_switch_is_in_right_position())
         {
             rotate_full_counterclockwise();
-            sprintf(buffer, "SERVO: left");
+            sprintf(buffer, "Counterclockwise");
         }
     }
 
