@@ -119,7 +119,7 @@ int compute_times_seen(int start, int target, bool clockwise, int rotations)
 
 void control_lock()
 {
-    // TODO: Add debouncing
+
     // TODO: Add way to track if numbers have been passed already PDF Section 6 Requirement 13
     int direction = get_direction();
     bool left_button_pressed = cowpi_debounce_byte(cowpi_left_button_is_pressed(), LEFT_BUTTON_DOWN);
@@ -159,7 +159,6 @@ void control_lock()
             }
         }
         display_string(1, format_combination(entered_combination));
-        // TODO: Debouncing here is very important, button will not work without debouncing
         if (left_button_pressed)
         {
             if (progress == 2)
@@ -188,7 +187,6 @@ void control_lock()
                         sprintf(bad_try_message, "bad try %d", bad_tries);
                         display_string(1, bad_try_message);
 
-                        // TODO: BLink BOTH LEDs twice with busywait
                         for (int i = 0; i < 2; i++)
                         {
                             cowpi_illuminate_left_led();
