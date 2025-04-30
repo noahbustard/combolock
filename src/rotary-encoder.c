@@ -20,6 +20,7 @@
 
 #define A_WIPER_PIN (16)
 #define B_WIPER_PIN (A_WIPER_PIN + 1)
+#define DEBOUNCE_INTERVAL_US 1000
 
 typedef enum
 {
@@ -34,11 +35,14 @@ static rotation_state_t volatile state;
 static direction_t volatile direction = STATIONARY;
 static int volatile clockwise_count = 0;
 static int volatile counterclockwise_count = 0;
+static uint64_t last_debounce_time_us = 0;
+static cowpi_timer_t volatile *timer;
 
 static void handle_quadrature_interrupt();
 
 void initialize_rotary_encoder()
 {
+    timer = (cowpi_timer_t *) (0x40054000);
     cowpi_set_pullup_input_pins((1 << A_WIPER_PIN) | (1 << B_WIPER_PIN));
     uint8_t quadrature = get_quadrature();
     switch (quadrature)
@@ -106,6 +110,12 @@ rotation_state_t decode_quadrature(uint8_t quadrature)
 
 static void handle_quadrature_interrupt()
 {
+    uint64_t now = timer->raw_lower_word;
+    if (now - last_debounce_time_us < DEBOUNCE_INTERVAL_US) {
+        return;
+    }
+    last_debounce_time_us = now;
+
     static rotation_state_t last_state = HIGH_HIGH;
     uint8_t quadrature = get_quadrature();
     rotation_state_t decoded_state = decode_quadrature(quadrature);

@@ -22,12 +22,17 @@
 #define LOCKED (1)
 #define UNLOCKED (0)
 #define ALARMED (2)
+#define CHANGING (3)
 
 static uint8_t combination[3] __attribute__((section(".uninitialized_ram.")));
 static uint8_t entered_combination[3];
 static uint8_t lock_state;
 static uint8_t progress;
 static uint8_t bad_tries;
+static uint8_t times_passed_first_num;
+static uint8_t times_passed_second_num;
+static uint8_t times_passed_third_num;
+static uint8_t times_passed_zero;
 
 uint8_t const *get_combination()
 {
@@ -73,54 +78,19 @@ void initialize_lock_controller()
     lock_state = LOCKED;
     progress = 0;
     bad_tries = 0;
+    times_passed_first_num = 0;
+    times_passed_second_num = 0;
+    times_passed_third_num = 0;
+    times_passed_zero = 0;
     rotate_full_clockwise();
     cowpi_illuminate_left_led();
     display_string(1, format_combination(entered_combination));
 }
 
-// returns the number of times a target number has been availible for selection by the lock at this position
-int compute_times_seen(int start, int target, bool clockwise, int rotations)
-{
-    int start_to_target;
-    int times_seen;
-    if (clockwise)
-    {
-        if (target >= start)
-        {
-            start_to_target = target - start;
-        }
-        else
-        {
-            start_to_target = 16 - (start - target);
-        }
-    }
-    else
-    {
-        if (start >= target)
-        {
-            start_to_target = start - target;
-        }
-        else
-        {
-            start_to_target = 16 - (target - start);
-        }
-    }
-    if (rotations >= start_to_target)
-    {
-        times_seen++;
-        rotations -= start_to_target;
-    }
-    while (rotations >= 16)
-    {
-        times_seen++;
-        rotations -= 16;
-    }
-}
 
 void control_lock()
 {
 
-    // TODO: Add way to track if numbers have been passed already PDF Section 6 Requirement 13
     int direction = get_direction();
     bool left_button_pressed = cowpi_debounce_byte(cowpi_left_button_is_pressed(), LEFT_BUTTON_DOWN);
     bool right_button_pressed = cowpi_debounce_byte(cowpi_right_button_is_pressed(), RIGHT_BUTTON_DOWN);
@@ -129,13 +99,33 @@ void control_lock()
     {
         if (direction == CLOCKWISE)
         {
-            if (progress == 0 || progress == 2)
-            {
+            if (progress == 0 || progress == 2) {
+                if (progress == 2 && times_passed_zero == 2) {
+                    times_passed_first_num = 0;
+                    times_passed_second_num = 0;
+                    times_passed_third_num = 0;
+                    times_passed_zero = 0;
+                    entered_combination[0] = 255;
+                    entered_combination[1] = 255;
+                    entered_combination[2] = 255;
+                    progress = 0;
+                }
+                if (entered_combination[progress] == combination[progress]) {
+                    if (progress == 0) {
+                        times_passed_first_num += 1;
+                    } else {
+                        times_passed_third_num += 1;
+                    }
+                }
                 entered_combination[progress] = (entered_combination[progress] + 1) % 16;
+                if (entered_combination[progress] == 0 && progress == 2) {
+                    times_passed_zero += 1;
+                }
             }
             else if (progress == 1)
             {
                 progress = 2;
+                times_passed_zero = 0;
                 entered_combination[2] = entered_combination[1];
             }
         }
@@ -148,10 +138,29 @@ void control_lock()
             }
             else if (progress == 1)
             {
+                if (times_passed_zero == 3) {
+                    times_passed_first_num = 0;
+                    times_passed_second_num = 0;
+                    times_passed_third_num = 0;
+                    times_passed_zero = 0;
+                    entered_combination[0] = 255;
+                    entered_combination[1] = 255;
+                    entered_combination[2] = 255;
+                    progress = 0;
+                } else if (entered_combination[progress] == combination[progress]) {
+                    times_passed_second_num += 1;
+                }
                 entered_combination[progress] = (entered_combination[progress] - 1 + 16) % 16;
+                if (entered_combination[progress] == 0) {
+                    times_passed_zero += 1;
+                }
             }
             else if (progress == 2)
             {
+                times_passed_first_num = 0;
+                times_passed_second_num = 0;
+                times_passed_third_num = 0;
+                times_passed_zero = 0;
                 entered_combination[0] = 255;
                 entered_combination[1] = 255;
                 entered_combination[2] = 255;
@@ -165,13 +174,16 @@ void control_lock()
             {
                 if (entered_combination[0] == combination[0] &&
                     entered_combination[1] == combination[1] &&
-                    entered_combination[2] == combination[2])
+                    entered_combination[2] == combination[2] &&
+                    times_passed_first_num > 1 && 
+                    times_passed_second_num == 1 &&
+                    times_passed_third_num == 0)
                 {
                     lock_state = UNLOCKED;
                     rotate_full_counterclockwise();
                     cowpi_illuminate_right_led();
                     cowpi_deluminate_left_led();
-                    display_string(1, "Unlocked!");
+                    display_string(1, "OPEN");
                 }
                 else
                 {
@@ -182,18 +194,20 @@ void control_lock()
                     }
                     else
                     {
-                        char bad_try_message[12];
                         volatile unsigned long j;
-                        sprintf(bad_try_message, "bad try %d", bad_tries);
+                        char bad_try_message[16];
+                        sprintf(bad_try_message, "bad try %d\n", bad_tries);
                         display_string(1, bad_try_message);
 
                         for (int i = 0; i < 2; i++)
                         {
+                            display_string(1, bad_try_message);
                             cowpi_illuminate_left_led();
                             cowpi_illuminate_right_led();
                             for (j = 0; j < 2000000; j++)
                             {
                             }
+                            display_string(1, bad_try_message);
                             cowpi_deluminate_left_led();
                             cowpi_deluminate_right_led();
                             for (j = 0; j < 2000000; j++)
@@ -203,6 +217,10 @@ void control_lock()
                         entered_combination[0] = 255;
                         entered_combination[1] = 255;
                         entered_combination[2] = 255;
+                        times_passed_first_num = 0;
+                        times_passed_second_num = 0;
+                        times_passed_third_num = 0;
+                        times_passed_zero = 0;
                         progress = 0;
                     }
                 }
@@ -224,13 +242,20 @@ void control_lock()
             entered_combination[1] = 255;
             entered_combination[2] = 255;
             progress = 0;
+            times_passed_first_num = 0;
+            times_passed_second_num = 0;
+            times_passed_third_num = 0;
+            times_passed_zero = 0;
             display_string(1, format_combination(entered_combination));
             lock_state = LOCKED;
+        }
+        if (cowpi_left_switch_is_in_right_position() && right_button_pressed) {
+            lock_state = CHANGING;
         }
     }
     else if (lock_state == ALARMED)
     {
-
+        display_string(1, "ALERT");
         volatile unsigned long i;
         cowpi_illuminate_left_led();
         cowpi_illuminate_right_led();
@@ -243,4 +268,59 @@ void control_lock()
         {
         }
     }
+    else if (lock_state == CHANGING) {
+        static uint8_t new_combination[6];
+        static int index = 0;
+        static bool confirming = false;
+        
+        char key = cowpi_get_keypress();
+        
+        if (!confirming) {
+            display_string(1, "ENTER");
+            if (key >= '0' && key <= '9') {
+                new_combination[index++] = key - '0';
+                if (index == 6) {
+                    display_string(1, "CONFIRM");
+                    confirming = true;
+                    index = 0;
+                }
+            }
+        } else {
+            if (key >= '0' && key <= '9') {
+                if (index < 6 && new_combination[index] == (key - '0')) {
+                    index++;
+                } else {
+                    index = 6;
+                }
+            }
+        
+            if (index == 6 || cowpi_left_switch_is_in_left_position()) {
+                bool incomplete = index < 6;
+                bool invalid = false;
+        
+                // Check if any number exceeds 15
+                for (int i = 0; i < 6; i += 2) {
+                    int number = new_combination[i] * 10 + new_combination[i + 1];
+                    if (number > 15) {
+                        invalid = true;
+                    }
+                }
+        
+                if (incomplete || invalid) {
+                    display_string(1, "NO CHANGE");
+                } else {
+                    combination[0] = new_combination[0] * 10 + new_combination[1];
+                    combination[1] = new_combination[2] * 10 + new_combination[3];
+                    combination[2] = new_combination[4] * 10 + new_combination[5];
+                    display_string(1, "CHANGED");
+                }
+            
+                
+                confirming = false;
+                index = 0;
+                lock_state = UNLOCKED;
+                }
+            }
+        }
+        
 }
